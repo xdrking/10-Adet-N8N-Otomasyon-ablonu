@@ -30,7 +30,7 @@ Aşağıda her bir şablonun ne işe yaradığı, senaryosu ve kullanım amacı 
 
 `01-telegram-mesaj-bildirim.json`
 
-![Telegram Bildirim](01-resim)
+![Telegram Bildirim](img/n8n-07-1resim.png)
 
 **Nasıl Kullanılır:**
 1. **Webhook Node**: Webhook URL'sini kopyalayıp bildirim gönderecek olan sisteme (form, sunucu vb.) ekleyin.
@@ -44,7 +44,7 @@ Herhangi bir uygulamadan, web sitesindeki bir iletişim formundan veya sunucunuz
 
 `02-rss-email-bildirim.json`
 
-![RSS Email](02-resim)
+![RSS Email](img/n8n-07-2resim.png)
 
 **Nasıl Kullanılır:**
 1. **RSS Oku Node**: `URL` kısmına (`YOUR_RSS_FEED_URL_HERE`) takip etmek istediğiniz RSS linkini yapıştırın.
@@ -58,7 +58,7 @@ Belirttiğiniz bir RSS kaynağını her saat başı kontrol eder. Eğer son 1 sa
 
 `03-zamanlayici-gunluk-rapor.json`
 
-![Günlük Rapor](03-resim)
+![Günlük Rapor](img/n8n-07-3resim.png)
 
 **Nasıl Kullanılır:**
 1. **API'den Veri Çek Node**: `URL` alanına veri çekeceğiniz endpoint'in adresini girin ve gerekiyorsa Header/Auth bilgilerinizi ekleyin. Rapor Formatla nodunda kod yapısını dönen verilere göre ufakça düzenleyebilirsiniz.
@@ -76,7 +76,7 @@ Her gün sabah saat tam 09:00'da çalışacak şekilde ayarlanmıştır. Belirtt
 
 `04-google-sheets-crm.json`
 
-![Sheets CRM](04-resim)
+![Sheets CRM](img/n8n-07-4resim.png)
 
 **Nasıl Kullanılır:**
 1. **Form Webhook**: Test url'nizi kopyalayıp web formunuzun hedef kısmına yapıştırın. Gelen ad, email gibi değerler Node içinde otomatik doğrulanacaktır.
@@ -91,7 +91,7 @@ Dışarıdan bir webhook aracılığıyla (örneğin Typeform veya kendi web sit
 
 `05-ai-icerik-ozetleyici.json`
 
-![AI Özetleyici](05-resim)
+![AI Özetleyici](img/n8n-07-5resim.png)
 
 **Nasıl Kullanılır:**
 1. **İçerik Webhook**: Özetlenecek uzun PDF, metin veya makaleleri webhook ile POST edin. 
@@ -106,7 +106,7 @@ Uzun metinleri saniyeler içinde özetleyen bir otomasyon. Webhook üzerinden me
 
 `06-github-discord-bildirim.json`
 
-![GitHub Discord](06-resim)
+![GitHub Discord](img/n8n-07-6resim.png)
 
 **Nasıl Kullanılır:**
 1. **GitHub Webhook Node**: N8N'in sağladığı Webhook test URL'sini (Production URL) kopyalayın, Github deponuzdaki `Settings -> Webhooks` bölümüne yapıştırın (Event olarak "Send me everything" seçebilirsiniz).
@@ -124,7 +124,7 @@ GitHub deponuzda meydana gelen olayları takip eder. Birisi kod pushladığında
 
 `07-ai-musteri-destek-botu.json`
 
-![Destek Botu](07-resim)
+![Destek Botu](img/n8n-07-7resim.png)
 
 **Nasıl Kullanılır:**
 1. **Telegram Trigger Node**: Müşterinin size yazacağı Telegram botunun token'ını tanımlayın ve webhook bağlantısını aktive edin.
@@ -145,7 +145,7 @@ Doğrudan Telegram Botu üzerinden müşteriyle etkileşime giren akıllı bir a
 
 `08-coklu-platform-icerik-yayinlama.json`
 
-![Çoklu Platform](08-resim)
+![Çoklu Platform](img/n8n-07-8resim.png)
 
 **Nasıl Kullanılır:**
 1. **İçerik Webhook**: İçerik metinlerini (başlık, içerik, yazar) JSON olarak buraya gönderin.
@@ -162,7 +162,7 @@ Doğrudan Telegram Botu üzerinden müşteriyle etkileşime giren akıllı bir a
 
 `09-ai-lead-skorlama-pipeline.json`
 
-![Lead Skorlama](09-resim)
+![Lead Skorlama](img/n8n-07-9resim.png)
 
 **Nasıl Kullanılır:**
 1. **Lead Webhook**: Potansiyel müşteri verilerinizi buraya POST edin.
@@ -182,7 +182,7 @@ Gelişmiş B2B satış süreçleri otomasyonu. Bir potansiyel müşteri (lead) f
 
 `10-webhook-veri-isleme-etl.json`
 
-![ETL Pipeline](10-resim)
+![ETL Pipeline](img/n8n-07-10resim.png)
 
 **Nasıl Kullanılır:**
 1. **Veri Webhook**: Raw (Ham) verilerinizi toplu bir liste şeklinde API endpointinize ulaştırın.
