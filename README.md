@@ -64,7 +64,7 @@ Belirttiğiniz bir RSS kaynağını her saat başı kontrol eder. Eğer son 1 sa
 1. **API'den Veri Çek Node**: `URL` alanına veri çekeceğiniz endpoint'in adresini girin ve gerekiyorsa Header/Auth bilgilerinizi ekleyin. Rapor Formatla nodunda kod yapısını dönen verilere göre ufakça düzenleyebilirsiniz.
 2. **Telegram'a Gönder Node**: `chatId` alanına kendi sohbet kimliğinizi ve Credentials alanına bot token'ınızı tanımlayın.
 
-Her gün sabah saat tam 09:00'da çalışacak şekilde ayarlanmıştır. Belirttiğiniz bir API uç noktasına (endpoint) istek atar, oradan gelen JSON verisini (örneğin günlük satışlar, kayıt olan kullanıcı sayısı vb.) okur ve insan diline dönüştürüp Telegram'a günlük rapor olarak atar.
+Her gün sabah saat tam 09:00'da çalışacak şekilde ayarlanmıştır. Belirttiğiniz bir API uç noktasına (endpoint) istek gönderir, dönen JSON verisini (örneğin günlük satışlar, kayıt olan kullanıcı sayısı vb.) okur ve okunabilir bir formata dönüştürüp Telegram'a günlük rapor olarak iletir.
 
 **Kullanım Alanı:** E-ticaret günlük satış özeti, SaaS platformları günlük yeni üye özeti.
 
@@ -137,7 +137,7 @@ Doğrudan Telegram Botu üzerinden müşteriyle etkileşime giren akıllı bir a
 - Mesajın kategorisini (Teknik, Fatura, Şikayet vb.) ve aciliyet derecesini (Düşük, Orta, Yüksek) belirler.
 - Müşteriye nazikçe çözüm üreten veya yönlendiren bir cevap yazar.
 - Tüm bu etkileşimi (orijinal mesaj, yapay zeka cevabı, analiz sonucu) bir Google Sheets dosyasına loglar.
-- Eğer konu çok "Acil" (Yüksek öncelik) olarak etiketlendiyse, doğrudan sistem yöneticisine ikinci bir Telegram mesajı fırlatır.
+- Eğer konu "Acil" (Yüksek öncelik) olarak etiketlendiyse, doğrudan sistem yöneticisine ayrı bir Telegram bildirimi gönderir.
 
 **Kullanım Alanı:** 7/24 ilk seviye (L1) müşteri destek otomasyonu, destek biletleri triyaj (önceliklendirme) sistemi.
 
@@ -152,9 +152,9 @@ Doğrudan Telegram Botu üzerinden müşteriyle etkileşime giren akıllı bir a
 2. **Gemini Dönüştür Node**: API Key'inizi URL kısmına yapıştırın.
 3. **Yayınlama Node'ları (Telegram, Discord, E-posta)**: Sırasıyla Telegram Kanalı ID'nizi, Discord Webhook URL'nizi ve SMTP bülten alıcı adreslerinizi ilgili alanlardaki `YOUR_..._HERE` yazılarıyla değiştirin.
 
-İçerik üreticilerinin işini tek bir tıklamaya düşüren dev devasa bir yayın akışı. Sistem bir blog yazısının ham metnini (webhook üzerinden) alır.
+İçerik üreticilerinin işini tek bir tıklamaya indirgeyen kapsamlı bir yayın akışı. Sistem bir blog yazısının ham metnini (webhook üzerinden) alır.
 - **Gemini AI**, bu uzun yazıyı okur ve her platformun dinamiğine uygun 3 farklı versiyon üretir: Telegram için emojili kısa mesaj, Discord için detaylı düz metin, E-posta bülteni için vurucu bir konu başlığı ve HTML e-posta gövdesi.
-- Akabinde bu üç farklı medya formatını paralel olarak aynı anda Telegram, Discord ve E-posta (SMTP) üzerinden abonelere fırlatır.
+- Ardından bu üç farklı içerik formatını eş zamanlı olarak Telegram, Discord ve E-posta (SMTP) üzerinden abonelere iletir.
 
 **Kullanım Alanı:** Pazarlama departmanları, içerik üreticileri, blog sahipleri.
 
@@ -173,8 +173,8 @@ Doğrudan Telegram Botu üzerinden müşteriyle etkileşime giren akıllı bir a
 Gelişmiş B2B satış süreçleri otomasyonu. Bir potansiyel müşteri (lead) formu doldurduğunda sistem devreye girer:
 - **Gemini AI**, müşterinin şirket büyüklüğünü, unvanını, bütçesini ve sorununu analiz ederek lead'e 0 ile 100 arası bir **Skor** atar ("Soğuk", "Ilık", "Sıcak").
 - Tüm detayları Google Sheets'e kaydeder.
-- Bir if-else çatallanması ile eğer lead skoru 70 ve üzeriyse ("Sıcak Lead"), satış ekibini direkt anında detaylı bir analizle birlikte Telegram'dan dürter.
-- Eğer lead o kadar da acil veya büyük değilse (Soğuk/Ilık), sadece adama otomatik bir "ısınma (nurture)" e-postası atarak iletişimi arka planda sürdürür.
+- Bir if-else çatallanması ile eğer lead skoru 70 ve üzeriyse ("Sıcak Lead"), satış ekibini detaylı bir analizle birlikte Telegram üzerinden anında bilgilendirir.
+- Eğer lead skoru bu eşiğin altındaysa (Soğuk/Ilık), müşteriye otomatik bir "ısınma (nurture)" e-postası göndererek iletişimi arka planda sürdürür.
 
 **Kullanım Alanı:** B2B Sales operasyonları, ajans müşteri filtreleme süreçleri, yüksek değerli müşteri tespiti.
 
@@ -193,7 +193,7 @@ Gelişmiş B2B satış süreçleri otomasyonu. Bir potansiyel müşteri (lead) f
 Uygulamalar arası yüksek hacimli veri entegrasyonu (Extract, Transform, Load - ETL) kurmak için tasarlanmıştır. 
 - Toplu halde gelen ham JSON verisini parça parça işler, eksik veya hatalı formatı olan (boş isim, geçersiz e-posta vb.) verileri temizler ve ayıklar.
 - Temiz veriyi tek tek **Gemini AI**'dan geçirerek duygu analizi, anahtar kelime çıkarma ve özetleme işlemleriyle "zenginleştirir".
-- İşlenen taze veriyi veritabanına (Sheets) topluca basar, eğer içlerinde "kritik/yüksek öncelikli" veri varsa yöneticiye acil durum pings atar.
+- İşlenen veriyi veritabanına (Sheets) toplu olarak kaydeder, eğer içlerinde "kritik/yüksek öncelikli" veri varsa yöneticiye acil durum bildirimi gönderir.
 - Sonuç olarak veriyi gönderen asıl sisteme "Şu kadar kayıt başarıyla işlendi, şu kısmı hatalı çıktı" formatında bir dönüş raporu sunar.
 
 **Kullanım Alanı:** Third-party hizmetlerden toplu veri çekme, büyük ölçekli kullanıcı anket analizleri, CRM temizlik veritabanı eşitleme.
