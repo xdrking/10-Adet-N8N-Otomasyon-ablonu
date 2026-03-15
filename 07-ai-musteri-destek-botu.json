@@ -1,0 +1,163 @@
+{
+  "name": "07 - AI Müşteri Destek Botu (Telegram → Gemini → Sheets)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000001",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 350],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json;\nconst message = msg.message || {};\nconst text = message.text || '';\nconst from = message.from || {};\nconst chat = message.chat || {};\n\nconst isStartCommand = text.toLowerCase().startsWith('/start');\nconst isHelpCommand = text.toLowerCase().startsWith('/help') || text.toLowerCase().startsWith('/yardim');\n\nreturn [{\n  json: {\n    chatId: chat.id,\n    userId: from.id,\n    kullaniciAdi: from.username || `${from.first_name || ''} ${from.last_name || ''}`.trim() || 'Anonim',\n    mesaj: text,\n    mesajId: message.message_id,\n    tarih: new Date().toLocaleDateString('tr-TR'),\n    saat: new Date().toLocaleTimeString('tr-TR'),\n    isCommand: isStartCommand || isHelpCommand,\n    commandType: isStartCommand ? 'start' : isHelpCommand ? 'help' : 'message'\n  }\n}];"
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000002",
+      "name": "Mesaj Bilgilerini Çıkar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "command-check", "leftValue": "={{ $json.isCommand }}", "rightValue": false, "operator": { "type": "boolean", "operation": "false" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000003",
+      "name": "Komut mu?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [730, 350]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY_HERE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"Sen bir müşteri destek asistanısın. Aşağıdaki kurallara uy:\\n1. Her zaman Türkçe yanıt ver\\n2. Nazik ve profesyonel ol\\n3. Yanıtın sonunda mesajı şu kategorilerden biriyle sınıfla ve [KATEGORİ: ...] formatında yaz: Teknik Destek, Fatura/Ödeme, Genel Bilgi, Şikayet, Öneri, Diğer\\n4. Aciliyet seviyesini belirle ve [ACİLİYET: Düşük/Orta/Yüksek] formatında yaz\\n5. Cevabın kısa ve öz olsun (max 3-4 cümle)\\n6. Çözemeyeceğin konularda 'Sizi yetkili bir temsilciye yönlendiriyorum' de\\n\\nMüşteri mesajı: {{ $json.mesaj }}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.4,\n    \"maxOutputTokens\": 500\n  }\n}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000004",
+      "name": "Gemini Analiz & Yanıt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [980, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $input.first().json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst prevData = $('Mesaj Bilgilerini Çıkar').first().json;\n\nconst kategoriMatch = aiResponse.match(/\\[KATEGORİ:\\s*(.+?)\\]/i);\nconst aciliyetMatch = aiResponse.match(/\\[ACİLİYET:\\s*(.+?)\\]/i);\n\nconst kategori = kategoriMatch ? kategoriMatch[1].trim() : 'Diğer';\nconst aciliyet = aciliyetMatch ? aciliyetMatch[1].trim() : 'Düşük';\n\nlet temizYanit = aiResponse\n  .replace(/\\[KATEGORİ:\\s*.+?\\]/gi, '')\n  .replace(/\\[ACİLİYET:\\s*.+?\\]/gi, '')\n  .trim();\n\nreturn [{\n  json: {\n    chatId: prevData.chatId,\n    kullaniciAdi: prevData.kullaniciAdi,\n    orijinalMesaj: prevData.mesaj,\n    aiYanit: temizYanit,\n    kategori,\n    aciliyet,\n    tarih: prevData.tarih,\n    saat: prevData.saat,\n    telegramYanit: `${temizYanit}\\n\\n📋 Kategori: ${kategori}\\n⚡ Aciliyet: ${aciliyet}`\n  }\n}];"
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000005",
+      "name": "Yanıt İşle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1220, 250]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.telegramYanit }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000006",
+      "name": "Yanıt Gönder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1460, 150],
+      "credentials": { "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot API" } }
+    },
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "YOUR_GOOGLE_SHEET_ID_HERE", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Destek Logları", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Tarih": "={{ $json.tarih }}", "Saat": "={{ $json.saat }}",
+            "Kullanıcı": "={{ $json.kullaniciAdi }}", "Mesaj": "={{ $json.orijinalMesaj }}",
+            "AI Yanıt": "={{ $json.aiYanit }}", "Kategori": "={{ $json.kategori }}",
+            "Aciliyet": "={{ $json.aciliyet }}"
+          },
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000007",
+      "name": "Sheets'e Logla",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1460, 350],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "YOUR_GOOGLE_CREDENTIAL_ID", "name": "Google Sheets OAuth2" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "urgency-check", "leftValue": "={{ $json.aciliyet }}", "rightValue": "Yüksek", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000008",
+      "name": "Acil mi?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1700, 350]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_ADMIN_TELEGRAM_CHAT_ID_HERE",
+        "text": "=🚨 **ACİL DESTEK TALEBİ**\n\n👤 Kullanıcı: {{ $json.kullaniciAdi }}\n📋 Kategori: {{ $json.kategori }}\n\n💬 **Mesaj:**\n{{ $json.orijinalMesaj }}\n\n🤖 **AI Yanıtı:**\n{{ $json.aiYanit }}\n\n🕐 {{ $json.tarih }} {{ $json.saat }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000009",
+      "name": "Admin'e Acil Bildirim",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1950, 250],
+      "credentials": { "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot API" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Mesaj Bilgilerini Çıkar').first().json.chatId }}",
+        "text": "=👋 Merhaba! Ben AI destekli müşteri destek botuyum.\n\n📝 Bana sorunuzu veya talebinizi yazabilirsiniz.\n\nYapabileceklerim:\n• 🔧 Teknik destek sorularını yanıtlama\n• 💰 Fatura ve ödeme bilgileri\n• ℹ️ Genel bilgi sağlama\n• 📢 Şikayet ve önerilerinizi kaydetme\n\nSorunuzu yazmaya başlayın! 👇",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "g1b2c3d4-7777-4000-8000-000000000010",
+      "name": "Hoşgeldin Mesajı",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [980, 500],
+      "credentials": { "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID", "name": "Telegram Bot API" } }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": { "main": [[{ "node": "Mesaj Bilgilerini Çıkar", "type": "main", "index": 0 }]] },
+    "Mesaj Bilgilerini Çıkar": { "main": [[{ "node": "Komut mu?", "type": "main", "index": 0 }]] },
+    "Komut mu?": { "main": [[{ "node": "Gemini Analiz & Yanıt", "type": "main", "index": 0 }], [{ "node": "Hoşgeldin Mesajı", "type": "main", "index": 0 }]] },
+    "Gemini Analiz & Yanıt": { "main": [[{ "node": "Yanıt İşle", "type": "main", "index": 0 }]] },
+    "Yanıt İşle": { "main": [[{ "node": "Yanıt Gönder", "type": "main", "index": 0 }, { "node": "Sheets'e Logla", "type": "main", "index": 0 }]] },
+    "Sheets'e Logla": { "main": [[{ "node": "Acil mi?", "type": "main", "index": 0 }]] },
+    "Acil mi?": { "main": [[{ "node": "Admin'e Acil Bildirim", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "07-ai-destek-botu-v2-gemini",
+  "meta": { "instanceId": "n8n-sablonlari", "templateCredsSetupCompleted": false },
+  "tags": [{ "name": "Zor" }, { "name": "AI" }, { "name": "Gemini" }, { "name": "Telegram" }, { "name": "Google Sheets" }, { "name": "Müşteri Destek" }]
+}

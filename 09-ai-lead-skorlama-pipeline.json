@@ -1,0 +1,75 @@
+{
+  "name": "09 - AI Lead Skorlama Pipeline (Gemini)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod":"POST","path":"lead-skorlama","options":{"responseMode":"responseNode"}},
+      "id": "i1-001","name": "Lead Webhook","type": "n8n-nodes-base.webhook","typeVersion": 2,"position": [200,400],"webhookId": "lead-skorlama"
+    },
+    {
+      "parameters": {"jsCode": "const i=$input.first().json;\nconst lead={\n  ad:i.ad||i.name||'',\n  email:i.email||'',\n  telefon:i.telefon||i.phone||'',\n  sirket:i.sirket||i.company||'',\n  pozisyon:i.pozisyon||i.position||'',\n  sektor:i.sektor||i.industry||'',\n  calisan_sayisi:i.calisan_sayisi||i.company_size||'',\n  butce:i.butce||i.budget||'',\n  ihtiyac:i.ihtiyac||i.need||i.message||'',\n  kaynak:i.kaynak||i.source||'web',\n  tarih:new Date().toLocaleDateString('tr-TR'),\n  saat:new Date().toLocaleTimeString('tr-TR')\n};\nconst hatalar=[];\nif(!lead.ad) hatalar.push('Ad');\nif(!lead.email) hatalar.push('E-posta');\nif(!lead.ihtiyac) hatalar.push('İhtiyaç');\nreturn [{json:{...lead,gecerli:hatalar.length===0,hatalar:hatalar.join(', ')}}];"},
+      "id": "i1-002","name": "Lead Doğrula","type": "n8n-nodes-base.code","typeVersion": 2,"position": [440,400]
+    },
+    {
+      "parameters": {"conditions":{"conditions":[{"id":"v1","leftValue":"={{ $json.gecerli }}","rightValue":true,"operator":{"type":"boolean","operation":"true"}}],"combinator":"and"},"options":{}},
+      "id": "i1-003","name": "Geçerli mi?","type": "n8n-nodes-base.if","typeVersion": 2,"position": [670,400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY_HERE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\"parts\": [{\"text\": \"Sen bir B2B lead skorlama uzmanısın. Verilen lead bilgilerini analiz et ve 0-100 arası bir skor ver. Yanıtını MUTLAKA şu JSON formatında ver:\\n{\\\"skor\\\":85,\\\"seviye\\\":\\\"Sıcak\\\",\\\"analiz\\\":\\\"Kısa analiz\\\",\\\"onerilen_aksiyon\\\":\\\"Önerilen aksiyon\\\",\\\"oncelik\\\":\\\"Yüksek\\\"}\\n\\nSeviyeler: Soğuk(0-30), Ilık(31-60), Sıcak(61-80), Çok Sıcak(81-100)\\nÖncelik: Düşük, Orta, Yüksek, Acil\\n\\nLead Bilgileri:\\nAd: {{ $json.ad }}\\nŞirket: {{ $json.sirket }}\\nPozisyon: {{ $json.pozisyon }}\\nSektör: {{ $json.sektor }}\\nÇalışan: {{ $json.calisan_sayisi }}\\nBütçe: {{ $json.butce }}\\nİhtiyaç: {{ $json.ihtiyac }}\\nKaynak: {{ $json.kaynak }}\"}]}],\n  \"generationConfig\": {\"temperature\": 0.3, \"maxOutputTokens\": 500}\n}",
+        "options": {"timeout": 30000}
+      },
+      "id": "i1-004","name": "Gemini Skorla","type": "n8n-nodes-base.httpRequest","typeVersion": 4.2,"position": [910,300]
+    },
+    {
+      "parameters": {"jsCode": "const r=$input.first().json.candidates?.[0]?.content?.parts?.[0]?.text||'';\nconst lead=$('Lead Doğrula').first().json;\nlet ai;\ntry{const m=r.match(/\\{[\\s\\S]*\\}/);ai=JSON.parse(m?m[0]:r);}catch(e){ai={skor:50,seviye:'Ilık',analiz:'Parse hatası',onerilen_aksiyon:'Manuel değerlendir',oncelik:'Orta'};}\nreturn [{json:{...lead,...ai}}];"},
+      "id": "i1-005","name": "Skor İşle","type": "n8n-nodes-base.code","typeVersion": 2,"position": [1150,300]
+    },
+    {
+      "parameters": {"documentId":{"__rl":true,"value":"YOUR_GOOGLE_SHEET_ID_HERE","mode":"id"},"sheetName":{"__rl":true,"value":"Leads","mode":"name"},"columns":{"mappingMode":"defineBelow","value":{"Tarih":"={{ $json.tarih }}","Ad":"={{ $json.ad }}","E-posta":"={{ $json.email }}","Şirket":"={{ $json.sirket }}","Pozisyon":"={{ $json.pozisyon }}","İhtiyaç":"={{ $json.ihtiyac }}","Skor":"={{ $json.skor }}","Seviye":"={{ $json.seviye }}","Öncelik":"={{ $json.oncelik }}","Analiz":"={{ $json.analiz }}","Aksiyon":"={{ $json.onerilen_aksiyon }}"},"matchingColumns":[]},"options":{}},
+      "id": "i1-006","name": "Sheets Kaydet","type": "n8n-nodes-base.googleSheets","typeVersion": 4.5,"position": [1400,300],
+      "credentials": {"googleSheetsOAuth2Api":{"id":"YOUR_GOOGLE_CREDENTIAL_ID","name":"Google Sheets OAuth2"}}
+    },
+    {
+      "parameters": {"conditions":{"conditions":[{"id":"s1","leftValue":"={{ $json.skor }}","rightValue":"70","operator":{"type":"number","operation":"gte"}}],"combinator":"and"},"options":{}},
+      "id": "i1-007","name": "Skor >= 70?","type": "n8n-nodes-base.if","typeVersion": 2,"position": [1640,300]
+    },
+    {
+      "parameters": {"chatId":"YOUR_SALES_TEAM_CHAT_ID_HERE","text":"=🔥 **YENİ SICAK LEAD!**\n\n👤 {{ $json.ad }} ({{ $json.sirket }})\n📧 {{ $json.email }}\n📊 Skor: {{ $json.skor }}/100 ({{ $json.seviye }})\n⚡ Öncelik: {{ $json.oncelik }}\n\n💡 **Analiz:** {{ $json.analiz }}\n🎯 **Aksiyon:** {{ $json.onerilen_aksiyon }}\n\n📝 İhtiyaç: {{ $json.ihtiyac }}","additionalFields":{"parse_mode":"Markdown"}},
+      "id": "i1-008","name": "Satış Ekibine Bildir","type": "n8n-nodes-base.telegram","typeVersion": 1.2,"position": [1900,200],
+      "credentials": {"telegramApi":{"id":"YOUR_TELEGRAM_CREDENTIAL_ID","name":"Telegram API"}}
+    },
+    {
+      "parameters": {"fromEmail":"YOUR_EMAIL_HERE","toEmail":"={{ $json.email }}","subject":"=Merhaba {{ $json.ad }}, ihtiyacınız hakkında","emailType":"html","html":"=<div style=\"font-family:Arial;max-width:600px;margin:0 auto\"><div style=\"background:linear-gradient(135deg,#667eea,#764ba2);padding:25px;border-radius:10px 10px 0 0;text-align:center\"><h1 style=\"color:#fff;margin:0\">Talebinizi Aldık ✨</h1></div><div style=\"padding:25px;background:#f8f9fa;border-radius:0 0 10px 10px\"><p>Merhaba <strong>{{ $json.ad }}</strong>,</p><p>İhtiyacınızı inceledik ve size en uygun çözümü sunmak istiyoruz.</p><p>Kısa süre içinde sizinle iletişime geçeceğiz.</p><p style=\"color:#999;font-size:12px\">Bu otomatik bir bildirimdir.</p></div></div>","options":{}},
+      "id": "i1-009","name": "Nurture E-posta","type": "n8n-nodes-base.emailSend","typeVersion": 2.1,"position": [1900,450],
+      "credentials": {"smtp":{"id":"YOUR_SMTP_CREDENTIAL_ID","name":"SMTP"}}
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={\"status\":\"success\",\"skor\":{{ $json.skor }},\"seviye\":\"{{ $json.seviye }}\"}","options":{"responseCode":200}},
+      "id": "i1-010","name": "Başarı Yanıtı","type": "n8n-nodes-base.respondToWebhook","typeVersion": 1.1,"position": [2150,300]
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={\"status\":\"error\",\"message\":\"Eksik: {{ $json.hatalar }}\"}","options":{"responseCode":400}},
+      "id": "i1-011","name": "Hata Yanıtı","type": "n8n-nodes-base.respondToWebhook","typeVersion": 1.1,"position": [910,550]
+    }
+  ],
+  "connections": {
+    "Lead Webhook": {"main":[[{"node":"Lead Doğrula","type":"main","index":0}]]},
+    "Lead Doğrula": {"main":[[{"node":"Geçerli mi?","type":"main","index":0}]]},
+    "Geçerli mi?": {"main":[[{"node":"Gemini Skorla","type":"main","index":0}],[{"node":"Hata Yanıtı","type":"main","index":0}]]},
+    "Gemini Skorla": {"main":[[{"node":"Skor İşle","type":"main","index":0}]]},
+    "Skor İşle": {"main":[[{"node":"Sheets Kaydet","type":"main","index":0}]]},
+    "Sheets Kaydet": {"main":[[{"node":"Skor >= 70?","type":"main","index":0}]]},
+    "Skor >= 70?": {"main":[[{"node":"Satış Ekibine Bildir","type":"main","index":0}],[{"node":"Nurture E-posta","type":"main","index":0}]]},
+    "Satış Ekibine Bildir": {"main":[[{"node":"Başarı Yanıtı","type":"main","index":0}]]},
+    "Nurture E-posta": {"main":[[{"node":"Başarı Yanıtı","type":"main","index":0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder":"v1"},
+  "versionId": "09-lead-skorlama-v2-gemini",
+  "meta": {"instanceId":"n8n-sablonlari"},
+  "tags": [{"name":"Zor"},{"name":"AI"},{"name":"Gemini"},{"name":"CRM"},{"name":"Lead Skorlama"}]
+}

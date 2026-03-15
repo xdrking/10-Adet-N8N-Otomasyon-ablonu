@@ -1,0 +1,68 @@
+{
+  "name": "08 - Çoklu Platform İçerik Yayınlama (Gemini AI)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod":"POST","path":"icerik-yayinla","options":{"responseMode":"responseNode"}},
+      "id": "h1-001","name": "İçerik Webhook","type": "n8n-nodes-base.webhook","typeVersion": 2,"position": [250,400],"webhookId": "icerik-yayinla"
+    },
+    {
+      "parameters": {"jsCode": "const i=$input.first().json;\nconst d={baslik:i.baslik||i.title||'Başlıksız',metin:i.metin||i.content||'',yazar:i.yazar||'Ekip',link:i.link||'',hata:false};\nif(!d.metin||d.metin.length<20){d.hata=true;d.mesaj='İçerik çok kısa';}\nreturn [{json:d}];"},
+      "id": "h1-002","name": "İçerik Doğrula","type": "n8n-nodes-base.code","typeVersion": 2,"position": [490,400]
+    },
+    {
+      "parameters": {"conditions":{"conditions":[{"id":"c1","leftValue":"={{ $json.hata }}","rightValue":false,"operator":{"type":"boolean","operation":"false"}}],"combinator":"and"},"options":{}},
+      "id": "h1-003","name": "Geçerli mi?","type": "n8n-nodes-base.if","typeVersion": 2,"position": [720,400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY_HERE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\"parts\": [{\"text\": \"İçerik pazarlama uzmanısın. Verilen içeriği 3 platform için dönüştür. JSON formatında yanıt ver: {\\\"telegram\\\":\\\"max 300 kar emoji'li\\\",\\\"discord\\\":\\\"max 500 kar detaylı\\\",\\\"email_subject\\\":\\\"max 80 kar\\\",\\\"email_body\\\":\\\"HTML e-posta gövdesi\\\"}\\n\\nBaşlık: {{ $json.baslik }}\\nİçerik: {{ $json.metin }}\\nYazar: {{ $json.yazar }}\"}]}],\n  \"generationConfig\": {\"temperature\": 0.7, \"maxOutputTokens\": 1500}\n}",
+        "options": {"timeout": 30000}
+      },
+      "id": "h1-004","name": "Gemini Dönüştür","type": "n8n-nodes-base.httpRequest","typeVersion": 4.2,"position": [960,300]
+    },
+    {
+      "parameters": {"jsCode": "const r=$input.first().json.candidates?.[0]?.content?.parts?.[0]?.text||'';\nconst o=$('İçerik Doğrula').first().json;\nlet p;\ntry{const m=r.match(/\\{[\\s\\S]*\\}/);p=JSON.parse(m?m[0]:r);}catch(e){p={telegram:'📢 '+o.baslik,discord:o.metin.substring(0,400),email_subject:o.baslik,email_body:'<h2>'+o.baslik+'</h2><p>'+o.metin+'</p>'};}\nreturn [{json:{...p,baslik:o.baslik,link:o.link}}];"},
+      "id": "h1-005","name": "İçerikleri Ayır","type": "n8n-nodes-base.code","typeVersion": 2,"position": [1200,300]
+    },
+    {
+      "parameters": {"chatId":"YOUR_TELEGRAM_CHANNEL_ID_HERE","text":"={{ $json.telegram }}\n\n🔗 {{ $json.link }}","additionalFields":{"parse_mode":"Markdown"}},
+      "id": "h1-006","name": "Telegram Yayınla","type": "n8n-nodes-base.telegram","typeVersion": 1.2,"position": [1460,150],
+      "credentials": {"telegramApi":{"id":"YOUR_TELEGRAM_CREDENTIAL_ID","name":"Telegram API"}}
+    },
+    {
+      "parameters": {"authentication":"webhook","content":"","options":{"embeds":{"values":[{"title":"={{ $json.baslik }}","description":"={{ $json.discord }}","color":5814783,"url":"={{ $json.link }}","timestamp":"={{ $now.toISO() }}","footer":{"text":"🤖 n8n otomasyon"}}]}}},
+      "id": "h1-007","name": "Discord Yayınla","type": "n8n-nodes-base.discord","typeVersion": 2,"position": [1460,350],
+      "credentials": {"discordWebhookApi":{"id":"YOUR_DISCORD_WEBHOOK_CREDENTIAL_ID","name":"Discord Webhook"}}
+    },
+    {
+      "parameters": {"fromEmail":"YOUR_EMAIL_HERE","toEmail":"YOUR_LIST_EMAIL_HERE","subject":"={{ $json.email_subject }}","emailType":"html","html":"={{ $json.email_body }}","options":{}},
+      "id": "h1-008","name": "E-posta Gönder","type": "n8n-nodes-base.emailSend","typeVersion": 2.1,"position": [1460,550],
+      "credentials": {"smtp":{"id":"YOUR_SMTP_CREDENTIAL_ID","name":"SMTP"}}
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={\"status\":\"success\",\"message\":\"3 platforma yayınlandı\"}","options":{"responseCode":200}},
+      "id": "h1-009","name": "Başarı Yanıtı","type": "n8n-nodes-base.respondToWebhook","typeVersion": 1.1,"position": [1720,350]
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={\"status\":\"error\",\"message\":\"{{ $json.mesaj }}\"}","options":{"responseCode":400}},
+      "id": "h1-010","name": "Hata Yanıtı","type": "n8n-nodes-base.respondToWebhook","typeVersion": 1.1,"position": [960,550]
+    }
+  ],
+  "connections": {
+    "İçerik Webhook": {"main":[[{"node":"İçerik Doğrula","type":"main","index":0}]]},
+    "İçerik Doğrula": {"main":[[{"node":"Geçerli mi?","type":"main","index":0}]]},
+    "Geçerli mi?": {"main":[[{"node":"Gemini Dönüştür","type":"main","index":0}],[{"node":"Hata Yanıtı","type":"main","index":0}]]},
+    "Gemini Dönüştür": {"main":[[{"node":"İçerikleri Ayır","type":"main","index":0}]]},
+    "İçerikleri Ayır": {"main":[[{"node":"Telegram Yayınla","type":"main","index":0},{"node":"Discord Yayınla","type":"main","index":0},{"node":"E-posta Gönder","type":"main","index":0}]]},
+    "Telegram Yayınla": {"main":[[{"node":"Başarı Yanıtı","type":"main","index":0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder":"v1"},
+  "versionId": "08-coklu-platform-v2-gemini",
+  "meta": {"instanceId":"n8n-sablonlari"},
+  "tags": [{"name":"Zor"},{"name":"AI"},{"name":"Gemini"},{"name":"Çoklu Platform"}]
+}

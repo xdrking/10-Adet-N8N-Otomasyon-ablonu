@@ -1,0 +1,211 @@
+{
+  "name": "05 - AI İçerik Özetleyici (Webhook → Gemini → Telegram)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-ozetleyici",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000001",
+      "name": "İçerik Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "ai-ozetleyici-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nconst metin = input.metin || input.text || input.content || '';\nconst dil = input.dil || input.language || 'Türkçe';\nconst uzunluk = input.uzunluk || input.length || 'kısa';\n\nif (!metin || metin.length < 50) {\n  return [{\n    json: {\n      hata: true,\n      mesaj: 'Metin çok kısa veya boş. En az 50 karakter gerekli.'\n    }\n  }];\n}\n\nlet talimat = '';\nswitch(uzunluk) {\n  case 'kisa':\n  case 'kısa':\n    talimat = '2-3 cümle ile özetle';\n    break;\n  case 'orta':\n    talimat = '1 paragraf ile özetle';\n    break;\n  case 'uzun':\n    talimat = 'madde madde detaylı özetle';\n    break;\n  default:\n    talimat = '2-3 cümle ile özetle';\n}\n\nreturn [{\n  json: {\n    metin,\n    dil,\n    uzunluk,\n    talimat,\n    hata: false,\n    karakterSayisi: metin.length\n  }\n}];"
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000002",
+      "name": "İçerik Hazırla",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "error-check",
+              "leftValue": "={{ $json.hata }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000003",
+      "name": "Hata Kontrol",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [710, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY_HERE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"Sen profesyonel bir içerik özetleyicisin. Aşağıdaki metni {{ $json.dil }} dilinde {{ $json.talimat }}. Özet net, anlaşılır ve bilgilendirici olmalı. Sadece özeti yaz, ekstra açıklama ekleme.\\n\\n--- METİN ---\\n{{ $json.metin }}\\n--- METİN SONU ---\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.3,\n    \"maxOutputTokens\": 1000\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000004",
+      "name": "Gemini Özetle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [950, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID_HERE",
+        "text": "=📝 **AI İçerik Özeti**\n\n{{ $json.candidates[0].content.parts[0].text }}\n\n━━━━━━━━━━━━━━━━━━━━\n📊 Orijinal: {{ $('İçerik Hazırla').item.json.karakterSayisi }} karakter\n🤖 Model: Gemini 2.5 Flash\n🕐 {{ $now.format('dd.MM.yyyy HH:mm') }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000005",
+      "name": "Telegram'a Gönder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1200, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"success\", \"ozet\": \"{{ $json.candidates[0].content.parts[0].text }}\"}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000006",
+      "name": "Başarı Yanıtı",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"error\", \"message\": \"{{ $json.mesaj }}\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "e1b2c3d4-5555-4000-8000-000000000007",
+      "name": "Hata Yanıtı",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [950, 450]
+    }
+  ],
+  "connections": {
+    "İçerik Webhook": {
+      "main": [
+        [
+          {
+            "node": "İçerik Hazırla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "İçerik Hazırla": {
+      "main": [
+        [
+          {
+            "node": "Hata Kontrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hata Kontrol": {
+      "main": [
+        [
+          {
+            "node": "Gemini Özetle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Yanıtı",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Özetle": {
+      "main": [
+        [
+          {
+            "node": "Telegram'a Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram'a Gönder": {
+      "main": [
+        [
+          {
+            "node": "Başarı Yanıtı",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "05-ai-ozetleyici-v2-gemini",
+  "meta": {
+    "instanceId": "n8n-sablonlari",
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "Orta"
+    },
+    {
+      "name": "AI"
+    },
+    {
+      "name": "Gemini"
+    },
+    {
+      "name": "Telegram"
+    }
+  ]
+}

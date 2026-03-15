@@ -1,0 +1,131 @@
+{
+  "name": "03 - Zamanlanmış Günlük Rapor (Cron → API → Telegram)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "c1b2c3d4-3333-4000-8000-000000000001",
+      "name": "Her Gün Sabah 9",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "YOUR_API_ENDPOINT_HERE",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "c1b2c3d4-3333-4000-8000-000000000002",
+      "name": "API'den Veri Çek",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_HTTP_AUTH_CREDENTIAL_ID",
+          "name": "API Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// API'den gelen veriyi rapor formatına dönüştür\nconst data = $input.all();\nlet rapor = '📊 **GÜNLÜK RAPOR**\\n';\nrapor += `📅 Tarih: ${new Date().toLocaleDateString('tr-TR')}\\n`;\nrapor += '━━━━━━━━━━━━━━━━━━━━\\n\\n';\n\nif (data && data.length > 0) {\n  const item = data[0].json;\n  \n  // Veriyi özetle (API yapınıza göre düzenleyin)\n  rapor += `📈 Toplam Kayıt: ${item.total || item.count || 'N/A'}\\n`;\n  rapor += `✅ Başarılı: ${item.success || item.completed || 'N/A'}\\n`;\n  rapor += `❌ Başarısız: ${item.failed || item.errors || 'N/A'}\\n`;\n  rapor += `💰 Gelir: ${item.revenue || item.income || 'N/A'}\\n`;\n  rapor += '\\n━━━━━━━━━━━━━━━━━━━━\\n';\n  rapor += '🤖 Otomatik rapor by n8n';\n} else {\n  rapor += '⚠️ Veri alınamadı.';\n}\n\nreturn [{ json: { rapor } }];"
+      },
+      "id": "c1b2c3d4-3333-4000-8000-000000000003",
+      "name": "Rapor Formatla",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [710, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID_HERE",
+        "text": "={{ $json.rapor }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "c1b2c3d4-3333-4000-8000-000000000004",
+      "name": "Telegram'a Gönder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [950, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Her Gün Sabah 9": {
+      "main": [
+        [
+          {
+            "node": "API'den Veri Çek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API'den Veri Çek": {
+      "main": [
+        [
+          {
+            "node": "Rapor Formatla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rapor Formatla": {
+      "main": [
+        [
+          {
+            "node": "Telegram'a Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "03-gunluk-rapor-v1",
+  "meta": {
+    "instanceId": "n8n-sablonlari",
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "Kolay"
+    },
+    {
+      "name": "Cron"
+    },
+    {
+      "name": "Telegram"
+    },
+    {
+      "name": "API"
+    }
+  ]
+}

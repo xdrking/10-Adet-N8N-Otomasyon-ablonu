@@ -1,0 +1,79 @@
+{
+  "name": "10 - Webhook Veri İşleme & ETL Pipeline (Gemini)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod":"POST","path":"etl-pipeline","options":{"responseMode":"responseNode"}},
+      "id": "j1-001","name": "Veri Webhook","type": "n8n-nodes-base.webhook","typeVersion": 2,"position": [150,400],"webhookId": "etl-pipeline"
+    },
+    {
+      "parameters": {"jsCode": "const raw=$input.first().json;\nconst kayitlar=Array.isArray(raw.data||raw.kayitlar)?raw.data||raw.kayitlar:[raw];\nconst sonuclar=[];\nconst hatali=[];\n\nfor(const k of kayitlar){\n  const kayit={ad:k.ad||k.name||'',email:k.email||'',veri:k.veri||k.data||k.content||'',tip:k.tip||k.type||'genel',kaynak:k.kaynak||k.source||'api',zaman:new Date().toISOString()};\n  const emailRegex=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  if(!kayit.ad||!kayit.email||!emailRegex.test(kayit.email)){hatali.push({...kayit,hata:'Geçersiz ad/email'});continue;}\n  kayit.email=kayit.email.toLowerCase().trim();\n  kayit.ad=kayit.ad.trim();\n  sonuclar.push(kayit);\n}\n\nreturn [{json:{gecerli:sonuclar,hatali:hatali,toplamGelen:kayitlar.length,gecerliSayisi:sonuclar.length,hataliSayisi:hatali.length}}];"},
+      "id": "j1-002","name": "Doğrula & Temizle","type": "n8n-nodes-base.code","typeVersion": 2,"position": [400,400]
+    },
+    {
+      "parameters": {"conditions":{"conditions":[{"id":"c1","leftValue":"={{ $json.gecerliSayisi }}","rightValue":"0","operator":{"type":"number","operation":"gt"}}],"combinator":"and"},"options":{}},
+      "id": "j1-003","name": "Geçerli Var mı?","type": "n8n-nodes-base.if","typeVersion": 2,"position": [640,400]
+    },
+    {
+      "parameters": {"jsCode": "const data=$input.first().json;\nconst items=data.gecerli.map(k=>({json:k}));\nreturn items;"},
+      "id": "j1-004","name": "Kayıtları Ayır","type": "n8n-nodes-base.code","typeVersion": 2,"position": [880,300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY_HERE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\"parts\": [{\"text\": \"Verilen veriyi analiz et. JSON yanıt ver: {\\\"kategori\\\":\\\"...\\\",\\\"ozet\\\":\\\"max 100 kar\\\",\\\"duygu\\\":\\\"pozitif/negatif/nötr\\\",\\\"anahtar_kelimeler\\\":[\\\"k1\\\",\\\"k2\\\"],\\\"oncelik\\\":\\\"düşük/orta/yüksek\\\"}\\n\\nTip: {{ $json.tip }}\\nVeri: {{ $json.veri }}\"}]}],\n  \"generationConfig\": {\"temperature\": 0.3, \"maxOutputTokens\": 300}\n}",
+        "options": {"timeout": 30000}
+      },
+      "id": "j1-005","name": "Gemini Zenginleştir","type": "n8n-nodes-base.httpRequest","typeVersion": 4.2,"position": [1120,300]
+    },
+    {
+      "parameters": {"jsCode": "const ai=$input.first().json.candidates?.[0]?.content?.parts?.[0]?.text||'';\nconst prev=$('Kayıtları Ayır').item.json;\nlet zengin;\ntry{const m=ai.match(/\\{[\\s\\S]*\\}/);zengin=JSON.parse(m?m[0]:ai);}catch(e){zengin={kategori:'Diğer',ozet:prev.veri?.substring(0,100)||'',duygu:'nötr',anahtar_kelimeler:[],oncelik:'orta'};}\nreturn [{json:{...prev,...zengin,islenmeTarihi:new Date().toLocaleDateString('tr-TR'),islenmeSaati:new Date().toLocaleTimeString('tr-TR')}}];"},
+      "id": "j1-006","name": "Veri Birleştir","type": "n8n-nodes-base.code","typeVersion": 2,"position": [1360,300]
+    },
+    {
+      "parameters": {"documentId":{"__rl":true,"value":"YOUR_GOOGLE_SHEET_ID_HERE","mode":"id"},"sheetName":{"__rl":true,"value":"ETL Veriler","mode":"name"},"columns":{"mappingMode":"defineBelow","value":{"Tarih":"={{ $json.islenmeTarihi }}","Saat":"={{ $json.islenmeSaati }}","Ad":"={{ $json.ad }}","E-posta":"={{ $json.email }}","Tip":"={{ $json.tip }}","Kategori":"={{ $json.kategori }}","Duygu":"={{ $json.duygu }}","Öncelik":"={{ $json.oncelik }}","Özet":"={{ $json.ozet }}","Anahtar Kelimeler":"={{ ($json.anahtar_kelimeler||[]).join(', ') }}","Kaynak":"={{ $json.kaynak }}"},"matchingColumns":[]},"options":{}},
+      "id": "j1-007","name": "Sheets Kaydet","type": "n8n-nodes-base.googleSheets","typeVersion": 4.5,"position": [1600,200],
+      "credentials": {"googleSheetsOAuth2Api":{"id":"YOUR_GOOGLE_CREDENTIAL_ID","name":"Google Sheets OAuth2"}}
+    },
+    {
+      "parameters": {"conditions":{"conditions":[{"id":"p1","leftValue":"={{ $json.oncelik }}","rightValue":"yüksek","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},
+      "id": "j1-008","name": "Yüksek Öncelik?","type": "n8n-nodes-base.if","typeVersion": 2,"position": [1600,420]
+    },
+    {
+      "parameters": {"chatId":"YOUR_ADMIN_CHAT_ID_HERE","text":"=⚡ **YÜKSEK ÖNCELİK VERİ**\n\n👤 {{ $json.ad }} ({{ $json.email }})\n📋 Kategori: {{ $json.kategori }}\n😊 Duygu: {{ $json.duygu }}\n📝 Özet: {{ $json.ozet }}\n🏷️ {{ ($json.anahtar_kelimeler||[]).join(', ') }}","additionalFields":{"parse_mode":"Markdown"}},
+      "id": "j1-009","name": "Acil Bildirim","type": "n8n-nodes-base.telegram","typeVersion": 1.2,"position": [1860,350],
+      "credentials": {"telegramApi":{"id":"YOUR_TELEGRAM_CREDENTIAL_ID","name":"Telegram API"}}
+    },
+    {
+      "parameters": {"jsCode": "const dogrulama=$('Doğrula & Temizle').first().json;\nconst hatali=dogrulama.hatali||[];\nconst rapor={\n  status:'completed',\n  toplam_gelen:dogrulama.toplamGelen,\n  gecerli:dogrulama.gecerliSayisi,\n  hatali:dogrulama.hataliSayisi,\n  hatali_kayitlar:hatali.map(h=>({ad:h.ad,email:h.email,hata:h.hata})),\n  zaman:new Date().toISOString()\n};\nreturn [{json:rapor}];"},
+      "id": "j1-010","name": "Sonuç Raporu","type": "n8n-nodes-base.code","typeVersion": 2,"position": [1860,550]
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{"responseCode":200}},
+      "id": "j1-011","name": "Yanıt Gönder","type": "n8n-nodes-base.respondToWebhook","typeVersion": 1.1,"position": [2100,450]
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={\"status\":\"error\",\"message\":\"Geçerli kayıt bulunamadı\"}","options":{"responseCode":400}},
+      "id": "j1-012","name": "Boş Hata","type": "n8n-nodes-base.respondToWebhook","typeVersion": 1.1,"position": [880,550]
+    }
+  ],
+  "connections": {
+    "Veri Webhook": {"main":[[{"node":"Doğrula & Temizle","type":"main","index":0}]]},
+    "Doğrula & Temizle": {"main":[[{"node":"Geçerli Var mı?","type":"main","index":0}]]},
+    "Geçerli Var mı?": {"main":[[{"node":"Kayıtları Ayır","type":"main","index":0}],[{"node":"Boş Hata","type":"main","index":0}]]},
+    "Kayıtları Ayır": {"main":[[{"node":"Gemini Zenginleştir","type":"main","index":0}]]},
+    "Gemini Zenginleştir": {"main":[[{"node":"Veri Birleştir","type":"main","index":0}]]},
+    "Veri Birleştir": {"main":[[{"node":"Sheets Kaydet","type":"main","index":0},{"node":"Yüksek Öncelik?","type":"main","index":0}]]},
+    "Sheets Kaydet": {"main":[[{"node":"Sonuç Raporu","type":"main","index":0}]]},
+    "Yüksek Öncelik?": {"main":[[{"node":"Acil Bildirim","type":"main","index":0}]]},
+    "Acil Bildirim": {"main":[[{"node":"Sonuç Raporu","type":"main","index":0}]]},
+    "Sonuç Raporu": {"main":[[{"node":"Yanıt Gönder","type":"main","index":0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder":"v1"},
+  "versionId": "10-etl-pipeline-v2-gemini",
+  "meta": {"instanceId":"n8n-sablonlari"},
+  "tags": [{"name":"Zor"},{"name":"ETL"},{"name":"AI"},{"name":"Gemini"},{"name":"Veri İşleme"}]
+}

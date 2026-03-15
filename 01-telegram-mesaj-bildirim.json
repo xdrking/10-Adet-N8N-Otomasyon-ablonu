@@ -1,0 +1,71 @@
+{
+  "name": "01 - Webhook → Telegram Bildirim",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-bildirim",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4000-8000-000000000001",
+      "name": "Webhook Al",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "telegram-bildirim-webhook"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID_HERE",
+        "text": "=🔔 **Yeni Bildirim**\n\n📌 **Başlık:** {{ $json.baslik || 'Belirtilmemiş' }}\n📝 **Mesaj:** {{ $json.mesaj || 'İçerik yok' }}\n👤 **Gönderen:** {{ $json.gonderen || 'Bilinmiyor' }}\n🕐 **Zaman:** {{ $now.format('dd.MM.yyyy HH:mm') }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "a1b2c3d4-1111-4000-8000-000000000002",
+      "name": "Telegram Gönder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Al": {
+      "main": [
+        [
+          {
+            "node": "Telegram Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "01-telegram-bildirim-v1",
+  "meta": {
+    "instanceId": "n8n-sablonlari",
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "Kolay"
+    },
+    {
+      "name": "Telegram"
+    },
+    {
+      "name": "Webhook"
+    }
+  ]
+}

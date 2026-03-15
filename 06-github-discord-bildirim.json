@@ -1,0 +1,105 @@
+{
+  "name": "06 - GitHub → Discord Bildirim",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-discord",
+        "options": {}
+      },
+      "id": "f1b2c3d4-6666-4000-8000-000000000001",
+      "name": "GitHub Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "github-discord-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json;\nconst headers = $input.first().json.headers || {};\n\n// GitHub event tipini belirle\nconst eventType = headers['x-github-event'] || 'unknown';\n\nlet embed = {\n  color: 0x238636,\n  timestamp: new Date().toISOString(),\n  footer: { text: '🤖 n8n GitHub Monitor' }\n};\n\nswitch(eventType) {\n  case 'push':\n    const commits = payload.body?.commits || payload.commits || [];\n    const pusher = payload.body?.pusher?.name || payload.pusher?.name || 'Bilinmiyor';\n    const repo = payload.body?.repository?.full_name || payload.repository?.full_name || 'Bilinmiyor';\n    const branch = (payload.body?.ref || payload.ref || '').replace('refs/heads/', '');\n    \n    let commitList = '';\n    commits.slice(0, 5).forEach((c, i) => {\n      const shortHash = (c.id || '').substring(0, 7);\n      commitList += `\\`${shortHash}\\` ${c.message || 'Mesaj yok'}\\n`;\n    });\n    if (commits.length > 5) commitList += `...ve ${commits.length - 5} commit daha`;\n    \n    embed.title = `🚀 Yeni Push: ${repo}`;\n    embed.description = `**Branch:** \\`${branch}\\`\\n**Pusher:** ${pusher}\\n**Commit Sayısı:** ${commits.length}\\n\\n${commitList}`;\n    embed.color = 0x238636;\n    break;\n    \n  case 'pull_request':\n    const pr = payload.body?.pull_request || payload.pull_request || {};\n    const action = payload.body?.action || payload.action || '';\n    \n    const actionEmoji = {\n      'opened': '🆕',\n      'closed': pr.merged ? '🟣' : '❌',\n      'merged': '🟣',\n      'reopened': '🔄',\n      'review_requested': '👀'\n    };\n    \n    embed.title = `${actionEmoji[action] || '📋'} PR ${action}: ${pr.title || 'Başlıksız'}`;\n    embed.description = `**Repo:** ${payload.body?.repository?.full_name || payload.repository?.full_name || ''}\\n**Yazan:** ${pr.user?.login || 'Bilinmiyor'}\\n**Branch:** \\`${pr.head?.ref || ''}\\` → \\`${pr.base?.ref || ''}\\`\\n\\n${(pr.body || '').substring(0, 200)}`;\n    embed.url = pr.html_url || '';\n    embed.color = action === 'opened' ? 0x238636 : action === 'closed' ? 0xda3633 : 0x8957e5;\n    break;\n    \n  case 'issues':\n    const issue = payload.body?.issue || payload.issue || {};\n    const issueAction = payload.body?.action || payload.action || '';\n    \n    embed.title = `🐛 Issue ${issueAction}: ${issue.title || 'Başlıksız'}`;\n    embed.description = `**Repo:** ${payload.body?.repository?.full_name || payload.repository?.full_name || ''}\\n**Yazan:** ${issue.user?.login || 'Bilinmiyor'}\\n**Labels:** ${(issue.labels || []).map(l => l.name).join(', ') || 'Yok'}\\n\\n${(issue.body || '').substring(0, 200)}`;\n    embed.url = issue.html_url || '';\n    embed.color = 0xd29922;\n    break;\n    \n  default:\n    embed.title = `📌 GitHub Event: ${eventType}`;\n    embed.description = 'Bilinmeyen event tipi alındı.';\n    embed.color = 0x848d97;\n}\n\nreturn [{ json: { embed } }];"
+      },
+      "id": "f1b2c3d4-6666-4000-8000-000000000002",
+      "name": "GitHub Event İşle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "",
+        "options": {
+          "embeds": {
+            "values": [
+              {
+                "title": "={{ $json.embed.title }}",
+                "description": "={{ $json.embed.description }}",
+                "color": "={{ $json.embed.color }}",
+                "url": "={{ $json.embed.url || '' }}",
+                "timestamp": "={{ $json.embed.timestamp }}",
+                "footer": {
+                  "text": "={{ $json.embed.footer.text }}"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "id": "f1b2c3d4-6666-4000-8000-000000000003",
+      "name": "Discord'a Gönder",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [750, 300],
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "YOUR_DISCORD_WEBHOOK_CREDENTIAL_ID",
+          "name": "Discord Webhook"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "GitHub Webhook": {
+      "main": [
+        [
+          {
+            "node": "GitHub Event İşle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Event İşle": {
+      "main": [
+        [
+          {
+            "node": "Discord'a Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "06-github-discord-v1",
+  "meta": {
+    "instanceId": "n8n-sablonlari",
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "Orta"
+    },
+    {
+      "name": "GitHub"
+    },
+    {
+      "name": "Discord"
+    }
+  ]
+}
