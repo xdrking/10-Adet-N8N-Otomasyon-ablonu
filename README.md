@@ -106,7 +106,7 @@ Uzun metinleri saniyeler içinde özetleyen bir otomasyon. Webhook üzerinden me
 
 `06-github-discord-bildirim.json`
 
-![GitHub Discord](06-resim)
+![GitHub Discord]
 
 **Nasıl Kullanılır:**
 1. **GitHub Webhook Node**: N8N'in sağladığı Webhook test URL'sini (Production URL) kopyalayın, Github deponuzdaki `Settings -> Webhooks` bölümüne yapıştırın (Event olarak "Send me everything" seçebilirsiniz).
