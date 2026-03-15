@@ -2,7 +2,7 @@
 
 Bu depo, günlük iş akışlarınızı hızlandırmak ve otomatize etmek için hazırlanmış **10 adet kullanıma hazır (Plug & Play) n8n otomasyon şablonunu** içermektedir. Şablonlar kolaydan zora doğru sıralanmıştır.
 
-![Kapak Görseli](kapak-gorseli-buraya-gelecek)
+![Kapak Görseli](img/n8n-gun07-kapak-gorseli.png)
 
 Tüm yapay zeka (AI) destekli şablonlar, maliyetleri sıfıra indirmek ve test süreçlerini kolaylaştırmak amacıyla **Google Gemini 2.5 Flash** modelini ücretsiz API hakları ile kullanacak şekilde yapılandırılmıştır. OpenAI kredisine ihtiyacınız yoktur.
 
