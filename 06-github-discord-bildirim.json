@@ -27,7 +27,7 @@
     {
       "parameters": {
         "authentication": "webhook",
-        "content": "",
+        "content": "=📡 GitHub Bildirim: {{ $json.embed.title }}",
         "options": {
           "embeds": {
             "values": [

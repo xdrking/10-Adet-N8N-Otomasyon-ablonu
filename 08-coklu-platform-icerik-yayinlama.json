@@ -34,7 +34,7 @@
       "credentials": {"telegramApi":{"id":"YOUR_TELEGRAM_CREDENTIAL_ID","name":"Telegram API"}}
     },
     {
-      "parameters": {"authentication":"webhook","content":"","options":{"embeds":{"values":[{"title":"={{ $json.baslik }}","description":"={{ $json.discord }}","color":5814783,"url":"={{ $json.link }}","timestamp":"={{ $now.toISO() }}","footer":{"text":"🤖 n8n otomasyon"}}]}}},
+      "parameters": {"authentication":"webhook","content":"=📢 Yeni İçerik: {{ $json.baslik }}","options":{"embeds":{"values":[{"title":"={{ $json.baslik }}","description":"={{ $json.discord }}","color":5814783,"url":"={{ $json.link }}","timestamp":"={{ $now.toISO() }}","footer":{"text":"🤖 n8n otomasyon"}}]}}},
       "id": "h1-007","name": "Discord Yayınla","type": "n8n-nodes-base.discord","typeVersion": 2,"position": [1460,350],
       "credentials": {"discordWebhookApi":{"id":"YOUR_DISCORD_WEBHOOK_CREDENTIAL_ID","name":"Discord Webhook"}}
     },
